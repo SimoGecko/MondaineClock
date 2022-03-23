@@ -2,12 +2,12 @@
 #include <ctime>
 
 // TODO:
-// - statically link
-// - make it tray only
 // - parameters
-// - improve border aliasing
+// - make it tray only (?)
+// - improve border aliasing (?)
 
 // DONE:
+// - statically link
 // - add icon
 // - remove console
 // - reduce resources usage
