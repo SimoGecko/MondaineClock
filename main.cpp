@@ -130,6 +130,7 @@ bool setTransparency(sf::WindowHandle handle, unsigned char alpha)
 #endif
 
 // PARAMETERS
+// parameters -size=200 -posx=X -posy=X -stop2go
 int wsize = 200;
 bool stop2go = true;
 int posx = 0;
@@ -138,36 +139,92 @@ int frameLimit = 30;
 
 // parameters
 #define scaling ((float)wsize/360.f)
+#define U *scaling
 
-#define clock_r  (180 *scaling)
-#define clock_b  ( 12 *scaling)
+#define clock_r  (180 U)
+#define clock_b  ( 12 U)
 
-#define ticks_r  (160 *scaling)
-#define ticks_l1 ( 40 *scaling)
-#define ticks_w1 ( 12 *scaling)
-#define ticks_l2 ( 12 *scaling)
-#define ticks_w2 (  5 *scaling)
+#define ticks_r  (160 U)
+#define ticks_l1 ( 40 U)
+#define ticks_w1 ( 12 U)
+#define ticks_l2 ( 12 U)
+#define ticks_w2 (  5 U)
 
-#define hour_l1  ( 94 *scaling)
-#define hour_l2  ( 39 *scaling)
-#define hour_w1  ( 15 *scaling)
-#define hour_w2  ( 21 *scaling)
+#define hour_l1  ( 94 U)
+#define hour_l2  ( 39 U)
+#define hour_w1  ( 15 U)
+#define hour_w2  ( 21 U)
 
-#define min_l1   (152 *scaling)
-#define min_l2   ( 40 *scaling)
-#define min_w1   ( 12 *scaling)
-#define min_w2   ( 18 *scaling)
+#define min_l1   (152 U)
+#define min_l2   ( 40 U)
+#define min_w1   ( 12 U)
+#define min_w2   ( 18 U)
 
-#define sec_l1   (122 *scaling)
-#define sec_l2   ( 50 *scaling)
-#define sec_w    (  5 *scaling)
-#define sec_r    ( 13 *scaling)
+#define sec_l1   (122 U)
+#define sec_l2   ( 50 U)
+#define sec_w    (  5 U)
+#define sec_r    ( 13 U)
 
-#define colhex_white 0xfdfdfdff
-#define colhex_black 0x221e20ff
-#define colhex_red   0xec2324ff
+#define col_white 0xfdfdfd
+#define col_black 0x221e20
+#define col_red   0xec2324
 
-void DrawMondaineBackground(sf::RenderTexture& window)
+#define colhex_white ((col_white<<8) | 0xff)
+#define colhex_black ((col_black<<8) | 0xff)
+#define colhex_red   ((col_red  <<8) | 0xff)
+
+
+sf::CircleShape GetCircle(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius)
+{
+    sf::CircleShape cs(radius, 64);
+    cs.setFillColor(color);
+    cs.setOrigin(origin);
+    cs.setPosition(position);
+    cs.setRotation(rotation);
+    return cs;
+}
+sf::CircleShape GetCircle(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, sf::Color outlineColor, float outlineThickness)
+{
+    sf::CircleShape cs(radius, 64);
+    cs.setFillColor(color);
+    cs.setOutlineColor(outlineColor);
+    cs.setOutlineThickness(outlineThickness);
+    cs.setOrigin(origin);
+    cs.setPosition(position);
+    cs.setRotation(rotation);
+    return cs;
+}
+sf::RectangleShape GetRectangle(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector2f size)
+{
+    sf::RectangleShape rs;
+    rs.setFillColor(color);
+    rs.setOrigin(origin);
+    rs.setPosition(position);
+    rs.setRotation(rotation);
+    rs.setSize(size);
+    return rs;
+}
+sf::ConvexShape GetTrapezoid(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector3f size)
+{
+    //sf::Vector2f approxSize((size.x + size.y) / 2.f, size.z);
+    //return GetRectangle(color, origin, position, rotation, approxSize);
+
+    sf::ConvexShape xs;
+    xs.setPointCount(4);
+    xs.setPoint(0, sf::Vector2f(0.f, 0.f));
+    xs.setPoint(1, sf::Vector2f(size.x, 0.f));
+    xs.setPoint(2, sf::Vector2f(size.x + (size.y-size.x)/2.f, size.z));
+    xs.setPoint(3, sf::Vector2f(-(size.y - size.x) / 2.f, size.z));
+
+    xs.setFillColor(color);
+    xs.setOrigin(origin);
+    xs.setPosition(position);
+    xs.setRotation(rotation);
+    return xs;
+}
+
+
+void DrawClockBackground(sf::RenderTarget& target)
 {
     sf::Color white(colhex_white);
     sf::Color black(colhex_black);
@@ -175,94 +232,113 @@ void DrawMondaineBackground(sf::RenderTexture& window)
 
     // draw background + border
     {
-        sf::CircleShape cs(clock_r - clock_b, 64);
-        cs.setFillColor(white);
-        cs.setOutlineThickness(clock_b);
-        cs.setOutlineColor(black);
-        cs.setPosition(sf::Vector2f(clock_b, clock_b));
-        window.draw(cs);
+        sf::Vector2f origin(clock_r, clock_r);
+        target.draw(GetCircle(white, origin, center, 0.f, clock_r, black, -clock_b));
     }
 
     // draw ticks
     {
-        sf::RectangleShape rs;
-        rs.setFillColor(black);
-        for (int i = 0; i < 60; i++)
+        for (int i = 0; i < 60; ++i)
         {
-            sf::Vector2f size;
-            if (i % 5 == 0) // large tick
-            {
-                size = sf::Vector2f(ticks_w1, ticks_l1);
-            }
-            else // small tick
-            {
-                size = sf::Vector2f(ticks_w2, ticks_l2);
-            }
+            bool largeTick = (i % 5 == 0);
+            sf::Vector2f size = largeTick ? sf::Vector2f(ticks_w1, ticks_l1) : sf::Vector2f(ticks_w2, ticks_l2);
             float angle = (float)i * 6.f; // / 60.f * 360.f;
-            rs.setOrigin(size.x / 2.f, ticks_r);
-            rs.setPosition(center);
-            rs.setRotation(angle);
-            rs.setSize(size);
-            window.draw(rs);
+            sf::Vector2f origin(size.x / 2.f, ticks_r);
+            target.draw(GetRectangle(black, origin, center, angle, size));
         }
     }
 }
 
-void DrawMondaineClock(sf::RenderWindow& window, int h, int m, int s)
+/*
+void DrawClockHands(sf::RenderTarget& target, int h, int m, int s)
 {
 	sf::Color black(colhex_black);
 	sf::Color red(colhex_red);
-
 	sf::Vector2f center(clock_r, clock_r);
 
 	// draw hours
 	{
-		sf::RectangleShape rs;
-		rs.setFillColor(black);
 		float angle = (float)(h % 12) * 30.f + (float)(m % 60) * 0.5f;
-		sf::Vector2f size = sf::Vector2f((hour_w1 + hour_w2) / 2.f, hour_l1 + hour_l2);
-		rs.setOrigin(size.x / 2.f, hour_l1);
-		rs.setPosition(center);
-		rs.setRotation(angle);
-		rs.setSize(size);
-		window.draw(rs);
+		sf::Vector3f size(hour_w1, hour_w2, hour_l1 + hour_l2);
+        sf::Vector2f origin(size.x / 2.f, hour_l1);
+        target.draw(GetTrapezoid(black, origin, center, angle, size));
 	}
 
 	// draw minutes
 	{
-		sf::RectangleShape rs;
-		rs.setFillColor(black);
 		float angle = (float)(m % 60) * 6.f;
-		sf::Vector2f size = sf::Vector2f((min_w1 + min_w2) / 2.f, min_l1 + min_l2);
-		rs.setOrigin(size.x / 2.f, min_l1);
-		rs.setPosition(center);
-		rs.setRotation(angle);
-		rs.setSize(size);
-		window.draw(rs);
+		sf::Vector3f size(min_w1, min_w2, min_l1 + min_l2);
+        sf::Vector2f origin(size.x / 2.f, min_l1);
+        target.draw(GetTrapezoid(black, origin, center, angle, size));
 	}
 
 	// draw seconds
 	{
-		sf::RectangleShape rs;
-		rs.setFillColor(red);
 		float angle = (float)(s % 60) * 6.f;
-		sf::Vector2f size = sf::Vector2f(sec_w, sec_l1 + sec_l2);
-		rs.setOrigin(size.x / 2.f, sec_l1);
-		rs.setPosition(center);
-		rs.setRotation(angle);
-		rs.setSize(size);
-		window.draw(rs);
+		sf::Vector2f size(sec_w, sec_l1 + sec_l2);
+        sf::Vector2f origin1(size.x / 2.f, sec_l1);
+        target.draw(GetRectangle(red, origin1, center, angle, size));
 
-		sf::CircleShape cs(sec_r, 64);
-		cs.setFillColor(red);
-		cs.setOrigin(sec_r, sec_l1);
-		cs.setPosition(center);
-		cs.setRotation(angle);
-		window.draw(cs);
+        sf::Vector2f origin2(sec_r, sec_l1);
+        float radius = sec_r;
+        target.draw(GetCircle(red, origin2, center, angle, radius));
 	}
 }
+*/
 
-// parameters -size=200 -posx=X -posy=X -stop2go
+void CreateClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape)
+{
+    sf::Color black(colhex_black);
+    sf::Color red(colhex_red);
+    sf::Vector2f center(clock_r, clock_r);
+
+    float angle = 0.f;
+    // create hours
+    {
+        sf::Vector3f size(hour_w1, hour_w2, hour_l1 + hour_l2);
+        sf::Vector2f origin(size.x / 2.f, hour_l1);
+        hShape = GetTrapezoid(black, origin, center, angle, size);
+    }
+
+    // create minutes
+    {
+        sf::Vector3f size(min_w1, min_w2, min_l1 + min_l2);
+        sf::Vector2f origin(size.x / 2.f, min_l1);
+        mShape = GetTrapezoid(black, origin, center, angle, size);
+    }
+
+    // create seconds
+    {
+        sf::Vector2f size(sec_w, sec_l1 + sec_l2);
+        sf::Vector2f origin1(size.x / 2.f, sec_l1);
+        s1Shape = GetRectangle(red, origin1, center, angle, size);
+
+        sf::Vector2f origin2(sec_r, sec_l1);
+        float radius = sec_r;
+        s2Shape = GetCircle(red, origin2, center, angle, radius);
+    }
+}
+
+void DrawClockHands(sf::RenderTarget& target, sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape, int h, int m, int s)
+{
+	// draw hours
+	float hAngle = (float)(h % 12) * 30.f + (float)(m % 60) * 0.5f;
+	hShape.setRotation(hAngle);
+	target.draw(hShape);
+
+	// draw minutes
+	float mAngle = (float)(m % 60) * 6.f;
+	mShape.setRotation(mAngle);
+	target.draw(mShape);
+
+	// draw seconds
+	float sAngle = (float)(s % 60) * 6.f;
+	s1Shape.setRotation(sAngle);
+	s2Shape.setRotation(sAngle);
+	target.draw(s1Shape);
+	target.draw(s2Shape);
+}
+
 
 void ReadParams(int argc, char** argv)
 {
@@ -282,17 +358,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 void GetTime(int& Hour, int& Min, int& Sec)
 {
-    // get the current time point
-    const std::time_t now = std::time(nullptr);
-    // convert it to (local) calendar time
-    const std::tm calendar_time = *std::localtime(std::addressof(now));
+    //const std::time_t now = std::time(nullptr);
+    //const std::tm calendar_time = *std::localtime(std::addressof(now));
 
-    // TODO: stop2go feature
     SYSTEMTIME st;
     GetLocalTime(&st);
-    //sprintf(currentTime, "%d/%d/%d  %d:%d:%d %d", st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
-    //char currentTime[84] = "";
-    //printf(currentTime);
 
     Hour = st.wHour;   //calendar_time.tm_hour;
     Min  = st.wMinute; //calendar_time.tm_min;
@@ -306,13 +376,11 @@ void GetTime(int& Hour, int& Min, int& Sec)
         Secf = Secf < 0.f ? 0.f : Secf > 60.f ? 60.f : Secf;
         Sec = (int)Secf;
     }
-    //Hour = 10; Min = 9; Sec = 37;
 }
 
 
 int main()
 {
-    //FreeConsole();
     //ReadParams(argc, argv);
     sf::Vector2i windowSize(wsize, wsize);
     sf::Vector2i windowPosition(-wsize-10, 2160-wsize-10-60);
@@ -320,10 +388,11 @@ int main()
         //(sf::VideoMode::getDesktopMode().height - windowSize.y) / 2);
 
 
-    // Create the window and center it on the screen
+    // Create the window
     sf::ContextSettings contextSettings;
-    contextSettings.antialiasingLevel = 10;
-    sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
+    contextSettings.antialiasingLevel = 8;
+    sf::RenderWindow window;
+    window.create(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
     window.setPosition(windowPosition);
     window.setFramerateLimit(frameLimit);
 
@@ -331,7 +400,7 @@ int main()
     sf::RenderTexture renderTextureBg;
     renderTextureBg.create(windowSize.x, windowSize.y, contextSettings);
     renderTextureBg.clear(sf::Color(colhex_black)); // sf::Color(255, 0, 255, 255)
-    DrawMondaineBackground(renderTextureBg);
+    DrawClockBackground(renderTextureBg);
     renderTextureBg.display();
     const sf::Texture& textureBg = renderTextureBg.getTexture();
     sf::Sprite spriteBg(textureBg);
@@ -349,6 +418,11 @@ int main()
 
     bool isMouseDragging = false;
     int lastDownX = 0, lastDownY = 0;
+
+    sf::RectangleShape hShape, mShape, s1Shape; // HACK: it works to assign a sf::ConvexShape with 4 vertices to a sf::RectangleShape
+    sf::CircleShape s2Shape;
+
+    CreateClockHands(hShape, mShape, s1Shape, s2Shape);
 
     while (window.isOpen())
     {
@@ -382,13 +456,15 @@ int main()
             }
         }
 
-        window.draw(spriteBg);
+        window.draw(spriteBg); // clear
         int Hour, Min, Sec;
         GetTime(Hour, Min, Sec);
-        DrawMondaineClock(window, Hour, Min, Sec);
+        //Hour = 10; Min = 9; Sec = 37;
+        //DrawClockHands(window, Hour, Min, Sec);
+        DrawClockHands(window, hShape, mShape, s1Shape, s2Shape, Hour, Min, Sec);
 
         window.display();
-        sf::sleep(sf::milliseconds(480)); // (58/60)*1000 /2
+        sf::sleep(sf::milliseconds(480)); // ~(58/60)*1000 /2
     }
 
     return 0;
