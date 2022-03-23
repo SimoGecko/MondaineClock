@@ -1,42 +1,29 @@
 #include <SFML/Graphics.hpp>
-//#include <chrono>
 #include <ctime>
+
+// TODO:
+// - statically link
+// - add icon
+// - make it tray only
+// - parameters
+// - improve border aliasing
+
+// DONE:
+// - remove console
+// - reduce resources usage
+// - make it draggable
+
+#define pow2(x) ((x)*(x))
 
 #if defined (SFML_SYSTEM_WINDOWS)
 #include <windows.h>
 
-bool setShape(HWND hWnd, const sf::Image& image)
-{
-    const sf::Uint8* pixelData = image.getPixelsPtr();
-    HRGN hRegion = CreateRectRgn(0, 0, image.getSize().x, image.getSize().y);
-
-    // Determine the visible region
-    for (unsigned int y = 0; y < image.getSize().y; y++)
-    {
-        for (unsigned int x = 0; x < image.getSize().x; x++)
-        {
-            if (pixelData[y * image.getSize().x * 4 + x * 4 + 3] == 0)
-            {
-                HRGN hRegionPixel = CreateRectRgn(x, y, x + 1, y + 1);
-                CombineRgn(hRegion, hRegion, hRegionPixel, RGN_XOR);
-                DeleteObject(hRegionPixel);
-            }
-        }
-    }
-
-    SetWindowRgn(hWnd, hRegion, true);
-    DeleteObject(hRegion);
-    return true;
-}
-
-#define pow2(x) ((x)*(x))
-
-bool setShapeCircle(HWND hWnd, sf::Vector2i size)
+bool setShapeCircle(HWND hWnd, const sf::Vector2i& size)
 {
     HRGN hRegion = CreateRectRgn(0, 0, size.x, size.y);
 
     // Determine the visible region
-    int d2 = pow2(size.x / 2);// pow2(size.x / 2) + pow2(size.y / 2);
+    int d2 = pow2(size.x / 2);
     for (int y = 0; y < size.y; y++)
     {
         for (int x = 0; x < size.x; x++)
@@ -67,9 +54,8 @@ bool setTransparency(HWND hWnd, unsigned char alpha)
 #include <X11/Xatom.h>
 #include <X11/extensions/shape.h>
 
-bool setShape(Window wnd, const sf::Image& image)
+bool setShapeCircle(Window wnd, const sf::Vector2i& size)
 {
-    const sf::Uint8* pixelData = image.getPixelsPtr();
     Display* display = XOpenDisplay(NULL);
 
     // Try to set the window shape
@@ -77,19 +63,23 @@ bool setShape(Window wnd, const sf::Image& image)
     int error_base;
     if (XShapeQueryExtension(display, &event_base, &error_base))
     {
-        Pixmap pixmap = XCreatePixmap(display, wnd, image.getSize().x, image.getSize().y, 1);
+        Pixmap pixmap = XCreatePixmap(display, wnd, size.x, size.y, 1);
         GC gc = XCreateGC(display, pixmap, 0, NULL);
 
         XSetForeground(display, gc, 1);
-        XFillRectangle(display, pixmap, gc, 0, 0, image.getSize().x, image.getSize().y);
+        XFillRectangle(display, pixmap, gc, 0, 0, size.x, size.y);
         XSetForeground(display, gc, 0);
 
-        for (unsigned int y = 0; y < image.getSize().y; y++)
+        int d2 = pow2(size.x / 2);
+        for (unsigned int y = 0; y < size.y; y++)
         {
-            for (unsigned int x = 0; x < image.getSize().x; x++)
+            for (unsigned int x = 0; x < size.x; x++)
             {
-                if (pixelData[y * image.getSize().x * 4 + x * 4 + 3] == 0)
+                int d = pow2(x - size.x / 2) + pow2(y - size.y / 2);
+                if (d > d2)
+                {
                     XFillRectangle(display, pixmap, gc, x, y, 1, 1);
+                }
             }
         }
 
@@ -125,10 +115,10 @@ bool setTransparency(Window wnd, unsigned char alpha)
 
 #undef None // None conflicts with SFML
 #elif defined (SFML_SYSTEM_MACOS)
-bool setShape(sf::WindowHandle handle, const sf::Image& image);
+bool setShapeCircle(sf::WindowHandle handle, const sf::Vector2i& size);
 bool setTransparency(sf::WindowHandle handle, unsigned char alpha);
 #else
-bool setShape(sf::WindowHandle handle, const sf::Image& image)
+bool setShapeCircle(sf::WindowHandle handle, const sf::Vector2i& size)
 {
     return false;
 }
@@ -139,38 +129,48 @@ bool setTransparency(sf::WindowHandle handle, unsigned char alpha)
 }
 #endif
 
+int wsize = 200;
+bool stop2go = false;
+int posx = 0;
+int posy = 0;
 
 // parameters
-#define clock_r 180
-#define clock_b 10
+#define scaling ((float)wsize/360.f)
 
-#define ticks_r 160
-#define ticks_l1 40
-#define ticks_w1 12
-#define ticks_l2 12
-#define ticks_w2  5
+#define clock_r  (180 *scaling)
+#define clock_b  ( 12 *scaling)
 
-#define hour_l1 94
-#define hour_l2 39
-#define hour_w1 15
-#define hour_w2 21
+#define ticks_r  (160 *scaling)
+#define ticks_l1 ( 40 *scaling)
+#define ticks_w1 ( 12 *scaling)
+#define ticks_l2 ( 12 *scaling)
+#define ticks_w2 (  5 *scaling)
 
-#define min_l1 152
-#define min_l2  40
-#define min_w1  12
-#define min_w2  18
+#define hour_l1  ( 94 *scaling)
+#define hour_l2  ( 39 *scaling)
+#define hour_w1  ( 15 *scaling)
+#define hour_w2  ( 21 *scaling)
 
-#define sec_l1 122
-#define sec_l2 50
-#define sec_w   5
-#define sec_r  13
+#define min_l1   (152 *scaling)
+#define min_l2   ( 40 *scaling)
+#define min_w1   ( 12 *scaling)
+#define min_w2   ( 18 *scaling)
 
+#define sec_l1   (122 *scaling)
+#define sec_l2   ( 50 *scaling)
+#define sec_w    (  5 *scaling)
+#define sec_r    ( 13 *scaling)
 
+#define colhex_white 0xfdfdfdff
+#define colhex_black 0x221e20ff
+#define colhex_red   0xec2324ff
+
+// TODO: create rendertexture for static elements to reduce the number of draw calls
 void DrawMondaineClock(sf::RenderWindow& window, int h, int m, int s)
 {
-	sf::Color white(0xfdfdfdff);
-	sf::Color black(0x221e20ff);
-	sf::Color red(0xec2324ff);
+	sf::Color white(colhex_white);
+	sf::Color black(colhex_black);
+	sf::Color red(colhex_red);
 
 	sf::Vector2f center(clock_r, clock_r);
 
@@ -207,7 +207,6 @@ void DrawMondaineClock(sf::RenderWindow& window, int h, int m, int s)
 			window.draw(rs);
 		}
 	}
-
 
 	// draw hours
 	{
@@ -258,80 +257,107 @@ void DrawMondaineClock(sf::RenderWindow& window, int h, int m, int s)
 
 // parameters -size=200 -posx=X -posy=X -stop2go
 
-int size = 360;
+void ReadParams(int argc, char** argv)
+{
+
+}
+
+int main();
+
+int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPWSTR    lpCmdLine,
+    _In_ int       nCmdShow)
+{
+    main();
+}
 
 int main()
 {
-    // Change this to the wanted transparency
-    const unsigned char opacity = 255;
-
-    sf::Vector2i windowSize(size, size);
-
-    // Load an image with transparent parts that will define the shape of the window
-    //sf::Image backgroundImage;
-    //backgroundImage.loadFromFile("image.png");
+    //FreeConsole();
+    //ReadParams(argc, argv);
+    sf::Vector2i windowSize(wsize, wsize);
+    sf::Vector2i windowPosition(-wsize-10, 2160-wsize-10-60);
+        //(sf::VideoMode::getDesktopMode().width  - windowSize.x) / 2,
+        //(sf::VideoMode::getDesktopMode().height - windowSize.y) / 2);
 
 
     // Create the window and center it on the screen
     sf::ContextSettings contextSettings;
-    contextSettings.antialiasingLevel = 10; // TODO
+    contextSettings.antialiasingLevel = 10;
     sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
-    window.setPosition(sf::Vector2i(
-        (sf::VideoMode::getDesktopMode().width  - windowSize.x) / 2,
-        (sf::VideoMode::getDesktopMode().height - windowSize.y) / 2));
+    window.setPosition(windowPosition);
+    window.setFramerateLimit(1);
 
-    // These functions return false on an unsupported OS or when it is not supported on linux (e.g. display doesn't support shape extention)
-    setShapeCircle(window.getSystemHandle(), windowSize);
-    setTransparency(window.getSystemHandle(), opacity);
+    // set icon
+    //sf::Image icon;
+    //icon.loadFromFile("icon.png"); // File/Image/Pixel
+    //window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
-    // We will also draw the image on the window instead of just showing an empty window with the wanted shape
-    //sf::Texture backgroundTexture;
-    //sf::Sprite backgroundSprite;
-    //backgroundTexture.loadFromImage(backgroundImage);
-    //backgroundSprite.setTexture(backgroundTexture);
+    //setShapeCircle(window.getSystemHandle(), windowSize);
+    //setTransparency(window.getSystemHandle(), 255);
 
-    // Main loop to display the image while the window is open (pressing the escape key to close the window)
+    bool isMouseDragging = false;
+    int lastDownX = 0, lastDownY = 0;
+
     while (window.isOpen())
     {
         sf::Event event;
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed || (event.key.code == sf::Keyboard::Escape && event.type == sf::Event::KeyPressed))
+            {
                 window.close();
+            }
+
+            // drag window
+            switch (event.type)
+            {
+            case sf::Event::MouseMoved:
+                if (isMouseDragging)
+                {
+                    window.setPosition(window.getPosition() + sf::Vector2<int>(event.mouseMove.x - lastDownX, event.mouseMove.y - lastDownY));
+                }
+                break;
+            case sf::Event::MouseButtonPressed:
+                lastDownX = event.mouseButton.x;
+                lastDownY = event.mouseButton.y;
+                isMouseDragging = true;
+                window.setFramerateLimit(30);
+                break;
+            case sf::Event::MouseButtonReleased:
+                isMouseDragging = false;
+                window.setFramerateLimit(1);
+                break;
+            }
         }
 
-        window.clear(sf::Color::Transparent);
-        //window.clear(sf::Color(255, 0, 255, 255));
-
-        //auto now = std::chrono::system_clock::now();
-        //std::time_t end_time = std::chrono::system_clock::to_time_t(now);
-        //auto now2 = std::ctime(&end_time);
-        //int hours = now2.
-
-        //time_t currentTime;
-        //struct tm* localTime = nullptr;
-        //
-        //time(&currentTime);                   // Get the current time
-        ////localTime = localtime(&currentTime);  // Convert the current time to the local time
-        //localtime_s(localTime, &currentTime);
-        //
-        //int Hour = localTime->tm_hour;
-        //int Min = localTime->tm_min;
-        //int Sec = localTime->tm_sec;
+        window.clear(sf::Color(255, 0, 255, 255));
+        //window.clear(sf::Color(colhex_black));
 
         // get the current time point
         const std::time_t now = std::time(nullptr);
         // convert it to (local) calendar time
         const std::tm calendar_time = *std::localtime(std::addressof(now));
 
+        // TODO: stop2go feature
+
         int Hour = calendar_time.tm_hour;
         int Min  = calendar_time.tm_min;
         int Sec  = calendar_time.tm_sec;
-
+        //int Msec = calendar_time.tm_
+        if (stop2go)
+        {
+            float Secf = (float)(Sec - 30.f) * (60.f / 58.f) + 30.f;
+            Secf = Secf < 0.f ? 0.f : Secf > 60.f ? 60.f : Secf;
+            Sec = (int)round(Secf);
+        }
+            
+        //Hour = 10; Min = 9; Sec = 37;
         DrawMondaineClock(window, Hour, Min, Sec);
-        //backgroundSprite.setColor(sf::Color(255, 255, 255, 100));
-        //window.draw(backgroundSprite);
         window.display();
+
+        // TODO: sleep for some time
     }
 
     return 0;
