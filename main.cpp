@@ -3,12 +3,12 @@
 
 // TODO:
 // - statically link
-// - add icon
 // - make it tray only
 // - parameters
 // - improve border aliasing
 
 // DONE:
+// - add icon
 // - remove console
 // - reduce resources usage
 // - make it draggable
@@ -129,10 +129,12 @@ bool setTransparency(sf::WindowHandle handle, unsigned char alpha)
 }
 #endif
 
+// PARAMETERS
 int wsize = 200;
-bool stop2go = false;
+bool stop2go = true;
 int posx = 0;
 int posy = 0;
+int frameLimit = 30;
 
 // parameters
 #define scaling ((float)wsize/360.f)
@@ -165,48 +167,53 @@ int posy = 0;
 #define colhex_black 0x221e20ff
 #define colhex_red   0xec2324ff
 
-// TODO: create rendertexture for static elements to reduce the number of draw calls
+void DrawMondaineBackground(sf::RenderTexture& window)
+{
+    sf::Color white(colhex_white);
+    sf::Color black(colhex_black);
+    sf::Vector2f center(clock_r, clock_r);
+
+    // draw background + border
+    {
+        sf::CircleShape cs(clock_r - clock_b, 64);
+        cs.setFillColor(white);
+        cs.setOutlineThickness(clock_b);
+        cs.setOutlineColor(black);
+        cs.setPosition(sf::Vector2f(clock_b, clock_b));
+        window.draw(cs);
+    }
+
+    // draw ticks
+    {
+        sf::RectangleShape rs;
+        rs.setFillColor(black);
+        for (int i = 0; i < 60; i++)
+        {
+            sf::Vector2f size;
+            if (i % 5 == 0) // large tick
+            {
+                size = sf::Vector2f(ticks_w1, ticks_l1);
+            }
+            else // small tick
+            {
+                size = sf::Vector2f(ticks_w2, ticks_l2);
+            }
+            float angle = (float)i * 6.f; // / 60.f * 360.f;
+            rs.setOrigin(size.x / 2.f, ticks_r);
+            rs.setPosition(center);
+            rs.setRotation(angle);
+            rs.setSize(size);
+            window.draw(rs);
+        }
+    }
+}
+
 void DrawMondaineClock(sf::RenderWindow& window, int h, int m, int s)
 {
-	sf::Color white(colhex_white);
 	sf::Color black(colhex_black);
 	sf::Color red(colhex_red);
 
 	sf::Vector2f center(clock_r, clock_r);
-
-	// draw background + border
-	{
-		sf::CircleShape cs(clock_r - clock_b, 64);
-		cs.setFillColor(white);
-		cs.setOutlineThickness(clock_b);
-		cs.setOutlineColor(black);
-		cs.setPosition(sf::Vector2f(clock_b, clock_b));
-		window.draw(cs);
-	}
-
-	// draw ticks
-	{
-		sf::RectangleShape rs;
-		rs.setFillColor(black);
-		for (int i = 0; i < 60; i++)
-		{
-			sf::Vector2f size;
-			if (i % 5 == 0) // large tick
-			{
-				size = sf::Vector2f(ticks_w1, ticks_l1);
-			}
-			else // small tick
-			{
-				size = sf::Vector2f(ticks_w2, ticks_l2);
-			}
-			float angle = (float)i * 6.f; // / 60.f * 360.f;
-			rs.setOrigin(size.x / 2.f, ticks_r);
-			rs.setPosition(center);
-			rs.setRotation(angle);
-			rs.setSize(size);
-			window.draw(rs);
-		}
-	}
 
 	// draw hours
 	{
@@ -272,6 +279,37 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     main();
 }
 
+
+void GetTime(int& Hour, int& Min, int& Sec)
+{
+    // get the current time point
+    const std::time_t now = std::time(nullptr);
+    // convert it to (local) calendar time
+    const std::tm calendar_time = *std::localtime(std::addressof(now));
+
+    // TODO: stop2go feature
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    //sprintf(currentTime, "%d/%d/%d  %d:%d:%d %d", st.wDay, st.wMonth, st.wYear, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+    //char currentTime[84] = "";
+    //printf(currentTime);
+
+    Hour = st.wHour;   //calendar_time.tm_hour;
+    Min  = st.wMinute; //calendar_time.tm_min;
+    Sec  = st.wSecond; //calendar_time.tm_sec;
+    if (stop2go)
+    {
+        int Msec = st.wMilliseconds;
+        float Secf = (float)Sec + (float)Msec / 1000.f;
+        //Secf = ((Secf + 1.f) - 30.f) * (60.f / 58.f) + 30.f;
+        Secf = Secf * (60.f / 58.f);
+        Secf = Secf < 0.f ? 0.f : Secf > 60.f ? 60.f : Secf;
+        Sec = (int)Secf;
+    }
+    //Hour = 10; Min = 9; Sec = 37;
+}
+
+
 int main()
 {
     //FreeConsole();
@@ -287,14 +325,26 @@ int main()
     contextSettings.antialiasingLevel = 10;
     sf::RenderWindow window(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
     window.setPosition(windowPosition);
-    window.setFramerateLimit(1);
+    window.setFramerateLimit(frameLimit);
+
+    // prepare the background
+    sf::RenderTexture renderTextureBg;
+    renderTextureBg.create(windowSize.x, windowSize.y, contextSettings);
+    renderTextureBg.clear(sf::Color(colhex_black)); // sf::Color(255, 0, 255, 255)
+    DrawMondaineBackground(renderTextureBg);
+    renderTextureBg.display();
+    const sf::Texture& textureBg = renderTextureBg.getTexture();
+    sf::Sprite spriteBg(textureBg);
+
+
+    //ShowWindow(window.getSystemHandle(), SW_HIDE);
 
     // set icon
     //sf::Image icon;
     //icon.loadFromFile("icon.png"); // File/Image/Pixel
     //window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
-    //setShapeCircle(window.getSystemHandle(), windowSize);
+    setShapeCircle(window.getSystemHandle(), windowSize);
     //setTransparency(window.getSystemHandle(), 255);
 
     bool isMouseDragging = false;
@@ -323,41 +373,22 @@ int main()
                 lastDownX = event.mouseButton.x;
                 lastDownY = event.mouseButton.y;
                 isMouseDragging = true;
-                window.setFramerateLimit(30);
+                //window.setFramerateLimit(30);
                 break;
             case sf::Event::MouseButtonReleased:
                 isMouseDragging = false;
-                window.setFramerateLimit(1);
+                //window.setFramerateLimit(frameLimit);
                 break;
             }
         }
 
-        window.clear(sf::Color(255, 0, 255, 255));
-        //window.clear(sf::Color(colhex_black));
-
-        // get the current time point
-        const std::time_t now = std::time(nullptr);
-        // convert it to (local) calendar time
-        const std::tm calendar_time = *std::localtime(std::addressof(now));
-
-        // TODO: stop2go feature
-
-        int Hour = calendar_time.tm_hour;
-        int Min  = calendar_time.tm_min;
-        int Sec  = calendar_time.tm_sec;
-        //int Msec = calendar_time.tm_
-        if (stop2go)
-        {
-            float Secf = (float)(Sec - 30.f) * (60.f / 58.f) + 30.f;
-            Secf = Secf < 0.f ? 0.f : Secf > 60.f ? 60.f : Secf;
-            Sec = (int)round(Secf);
-        }
-            
-        //Hour = 10; Min = 9; Sec = 37;
+        window.draw(spriteBg);
+        int Hour, Min, Sec;
+        GetTime(Hour, Min, Sec);
         DrawMondaineClock(window, Hour, Min, Sec);
-        window.display();
 
-        // TODO: sleep for some time
+        window.display();
+        sf::sleep(sf::milliseconds(480)); // (58/60)*1000 /2
     }
 
     return 0;
