@@ -130,8 +130,8 @@ int csize = 200;
 int posx = -1;
 int posy = -1;
 bool stop2go = true;
-int frameLimit = 30;
-int sleepTimeMs = 200; // 480 =~ (58/60)*1000 /2
+bool dark = false;
+unsigned int handcolor = 0;
 
 // state
 bool isMouseDragging = false;
@@ -226,8 +226,8 @@ sf::ConvexShape GetTrapezoid    (sf::Color color, sf::Vector2f origin, sf::Vecto
 
 void DrawClockBackground(sf::RenderTarget& target)
 {
-    const sf::Color white(colhex_white);
-    const sf::Color black(colhex_black);
+    const sf::Color white(!dark ? colhex_white : colhex_black);
+    const sf::Color black(!dark ? colhex_black : colhex_white);
     const sf::Vector2f center(clock_r, clock_r);
 
     // draw background + border
@@ -247,8 +247,8 @@ void DrawClockBackground(sf::RenderTarget& target)
 
 void CreateClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape)
 {
-    const sf::Color black(colhex_black);
-    const sf::Color red(colhex_red);
+    const sf::Color black(!dark ? colhex_black : colhex_white);
+    const sf::Color red(handcolor==0 ? colhex_red : handcolor);
     const sf::Vector2f center(clock_r, clock_r);
 
     const float angle = 0.f;
@@ -306,9 +306,13 @@ void ReadParams(int argc, char** argv)
         if      (_strcmpi(argv[i], "size")        == 0 && (i + 1 < argc)) csize       = std::stoi(argv[++i]);
         else if (_strcmpi(argv[i], "posx")        == 0 && (i + 1 < argc)) posx        = std::stoi(argv[++i]);
         else if (_strcmpi(argv[i], "posy")        == 0 && (i + 1 < argc)) posy        = std::stoi(argv[++i]);
-        else if (_strcmpi(argv[i], "framelimit")  == 0 && (i + 1 < argc)) frameLimit  = std::stoi(argv[++i]);
-        else if (_strcmpi(argv[i], "sleeptimems") == 0 && (i + 1 < argc)) sleepTimeMs = std::stoi(argv[++i]);
         else if (_strcmpi(argv[i], "stop2go")     == 0 && (i + 1 < argc)) stop2go     = (_strcmpi(argv[++i], "0") != 0);
+        else if (_strcmpi(argv[i], "dark")        == 0                  ) dark        = true;
+        else if (_strcmpi(argv[i], "handcolor")   == 0 && (i + 1 < argc))
+        {
+            int hex = std::stoi(argv[++i], 0, 16);
+            handcolor = ((hex << 8) | 0xff);
+        }
     }
 }
 
@@ -364,6 +368,28 @@ void GetTime(int& Hour, int& Min, int& Sec)
     }
 }
 
+int GetWaitTimeMs()
+{
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    int Msec = st.wMilliseconds;
+
+    if (stop2go)
+    {
+        int Sec = st.wSecond;
+        if (Sec >= 58) return 1000 - Msec;
+        
+        int tot = Sec * 1000 + Msec;
+        // find next multiple of 966.66=1000*58/60
+        int next = ((tot / 967) + 1) * 967;
+        return next - tot;
+    }
+    else
+    {
+        return 1000 - Msec;
+    }
+}
+
 int main(int argc, char** argv)
 {
     ReadParams(argc, argv);
@@ -382,7 +408,7 @@ int main(int argc, char** argv)
     sf::RenderWindow window;
     window.create(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
     window.setPosition(windowPosition);
-    window.setFramerateLimit(frameLimit);
+    window.setFramerateLimit(5);
 
     setShapeCircle(window.getSystemHandle(), windowSize);
     //setTransparency(window.getSystemHandle(), 255);
@@ -414,7 +440,7 @@ int main(int argc, char** argv)
         DrawClockHands(window, hShape, mShape, s1Shape, s2Shape, Hour, Min, Sec);
         window.display();
         
-        sf::sleep(sf::milliseconds(sleepTimeMs));
+        sf::sleep(sf::milliseconds(GetWaitTimeMs()));
     }
 
     return 0;
