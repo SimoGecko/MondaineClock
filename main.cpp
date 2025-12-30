@@ -2,13 +2,12 @@
 #include <ctime>
 #include <cstring>
 
-
 #define POW2(x) ((x)*(x))
 
 #if defined (SFML_SYSTEM_WINDOWS)
 #include <windows.h>
 
-bool setShapeCircle(HWND hWnd, const sf::Vector2i& size)
+bool setShapeCircle(HWND hWnd, const sf::Vector2u& size)
 {
     HRGN hRegion = CreateRectRgn(0, 0, size.x, size.y);
 
@@ -19,7 +18,7 @@ bool setShapeCircle(HWND hWnd, const sf::Vector2i& size)
         for (int x = 0; x < size.x; x++)
         {
             int d = POW2(x - size.x / 2) + POW2(y - size.y / 2);
-			if (d > d2)
+            if (d > d2)
             {
                 HRGN hRegionPixel = CreateRectRgn(x, y, x + 1, y + 1);
                 CombineRgn(hRegion, hRegion, hRegionPixel, RGN_XOR);
@@ -180,10 +179,10 @@ sf::CircleShape GetCircle       (sf::Color color, sf::Vector2f origin, sf::Vecto
     cs.setFillColor(color);
     cs.setOrigin(origin);
     cs.setPosition(position);
-    cs.setRotation(rotation);
+    cs.setRotation(sf::degrees(rotation));
     return cs;
 }
-sf::CircleShape GetCircleOutline(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, int segments = 32, sf::Color outlineColor=sf::Color::Transparent, float outlineThickness=0.f)
+sf::CircleShape GetCircleOutline(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, int segments = 32, sf::Color outlineColor = sf::Color::Transparent, float outlineThickness = 0.f)
 {
     sf::CircleShape cs(radius, segments);
     cs.setFillColor(color);
@@ -191,20 +190,20 @@ sf::CircleShape GetCircleOutline(sf::Color color, sf::Vector2f origin, sf::Vecto
     cs.setOutlineThickness(outlineThickness);
     cs.setOrigin(origin);
     cs.setPosition(position);
-    cs.setRotation(rotation);
+    cs.setRotation(sf::degrees(rotation));
     return cs;
 }
-sf::RectangleShape GetRectangle (sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector2f size)
+sf::RectangleShape GetRectangle(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector2f size)
 {
     sf::RectangleShape rs;
     rs.setFillColor(color);
     rs.setOrigin(origin);
     rs.setPosition(position);
-    rs.setRotation(rotation);
+    rs.setRotation(sf::degrees(rotation));
     rs.setSize(size);
     return rs;
 }
-sf::ConvexShape GetTrapezoid    (sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector3f size)
+sf::ConvexShape GetTrapezoid(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, sf::Vector3f size)
 {
     //sf::Vector2f approxSize((size.x + size.y) / 2.f, size.z);
     //return GetRectangle(color, origin, position, rotation, approxSize);
@@ -220,7 +219,7 @@ sf::ConvexShape GetTrapezoid    (sf::Color color, sf::Vector2f origin, sf::Vecto
     xs.setFillColor(color);
     xs.setOrigin(origin);
     xs.setPosition(position);
-    xs.setRotation(rotation);
+    xs.setRotation(sf::degrees(rotation));
     return xs;
 }
 
@@ -248,7 +247,7 @@ void DrawClockBackground(sf::RenderTarget& target)
 void CreateClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape)
 {
     const sf::Color black(!dark ? colhex_black : colhex_white);
-    const sf::Color red(handcolor==0 ? colhex_red : handcolor);
+    const sf::Color red(handcolor == 0 ? colhex_red : handcolor);
     const sf::Vector2f center(clock_r, clock_r);
 
     const float angle = 0.f;
@@ -281,22 +280,22 @@ void CreateClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, 
 
 void DrawClockHands(sf::RenderTarget& target, sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape, int h, int m, int s)
 {
-	// draw hours
-	float hAngle = (float)(h % 12) * 30.f + (float)(m % 60) * 0.5f;
-	hShape.setRotation(hAngle);
-	target.draw(hShape);
+    // draw hours
+    float hAngle = (float)(h % 12) * 30.f + (float)(m % 60) * 0.5f;
+    hShape.setRotation(sf::degrees(hAngle));
+    target.draw(hShape);
 
-	// draw minutes
-	float mAngle = (float)(m % 60) * 6.f;
-	mShape.setRotation(mAngle);
-	target.draw(mShape);
+    // draw minutes
+    float mAngle = (float)(m % 60) * 6.f;
+    mShape.setRotation(sf::degrees(mAngle));
+    target.draw(mShape);
 
-	// draw seconds
-	float sAngle = (float)(s % 60) * 6.f;
-	s1Shape.setRotation(sAngle);
-	s2Shape.setRotation(sAngle);
-	target.draw(s1Shape);
-	target.draw(s2Shape);
+    // draw seconds
+    float sAngle = (float)(s % 60) * 6.f;
+    s1Shape.setRotation(sf::degrees(sAngle));
+    s2Shape.setRotation(sf::degrees(sAngle));
+    target.draw(s1Shape);
+    target.draw(s2Shape);
 }
 
 void ReadParams(int argc, char** argv)
@@ -318,31 +317,35 @@ void ReadParams(int argc, char** argv)
 
 void processEvents(sf::Window& window)
 {
-    sf::Event event;
-    while (window.pollEvent(event))
+    while (const std::optional event = window.pollEvent())
     {
-        if (event.type == sf::Event::Closed || (event.key.code == sf::Keyboard::Escape && event.type == sf::Event::KeyPressed))
+        if (event->is<sf::Event::Closed>())// || (event->is<sf::Event::KeyPressed>() && event.key.code == sf::Keyboard::Escape))
         {
             window.close();
         }
-
-        // drag window
-        switch (event.type)
+        else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>())
         {
-        case sf::Event::MouseMoved:
+            if (keyPressed->code == sf::Keyboard::Key::Escape)
+                window.close();
+        }
+        // drag window
+        else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
+        {
+            // TODO: main mouse only
+            isMouseDragging = true;
+            lastDownX = mousePressed->position.x;
+            lastDownY = mousePressed->position.y;
+        }
+        else if (const auto* mouseMoved = event->getIf<sf::Event::MouseMoved>())
+        {
             if (isMouseDragging)
             {
-                window.setPosition(window.getPosition() + sf::Vector2<int>(event.mouseMove.x - lastDownX, event.mouseMove.y - lastDownY));
+                window.setPosition(window.getPosition() + sf::Vector2<int>(mouseMoved->position.x - lastDownX, mouseMoved->position.y - lastDownY));
             }
-            break;
-        case sf::Event::MouseButtonPressed:
-            lastDownX = event.mouseButton.x;
-            lastDownY = event.mouseButton.y;
-            isMouseDragging = true;
-            break;
-        case sf::Event::MouseButtonReleased:
+        }
+        else if (event->is<sf::Event::MouseButtonReleased>())
+        {
             isMouseDragging = false;
-            break;
         }
     }
 }
@@ -378,7 +381,7 @@ int GetWaitTimeMs()
     {
         int Sec = st.wSecond;
         if (Sec >= 58) return 1000 - Msec;
-        
+
         int tot = Sec * 1000 + Msec;
         // find next multiple of 966.66=1000*58/60
         int next = ((tot / 967) + 1) * 967;
@@ -393,30 +396,29 @@ int GetWaitTimeMs()
 int main(int argc, char** argv)
 {
     ReadParams(argc, argv);
-    
-    sf::Vector2i windowSize(csize, csize);
-    const int windowsTaskbarHeight = 48;
-    if (posx == -1) posx = (sf::VideoMode::getDesktopMode().width  - windowSize.x) - 10;
-    if (posy == -1) posy = (sf::VideoMode::getDesktopMode().height - windowSize.y) - 10 - windowsTaskbarHeight;
+
+    sf::Vector2u windowSize(csize, csize);
+    const int windowsTaskbarHeight = 48 * 1.5;
+    if (posx == -1) posx = (sf::VideoMode::getDesktopMode().size.x - windowSize.x) - 10;
+    if (posy == -1) posy = (sf::VideoMode::getDesktopMode().size.y - windowSize.y) - 10 - windowsTaskbarHeight;
     sf::Vector2i windowPosition(posx, posy);
 
 
     // Create the window
     sf::ContextSettings contextSettings;
-    contextSettings.antialiasingLevel = 8;
+    contextSettings.antiAliasingLevel = 8;
 
-    sf::RenderWindow window;
-    window.create(sf::VideoMode(windowSize.x, windowSize.y, 32), "Mondaine Clock", sf::Style::None, contextSettings);
+    sf::VideoMode videoMode(windowSize, 32);
+    sf::RenderWindow window(videoMode, sf::String("Mondaine Clock"), sf::Style::None, sf::State::Windowed, contextSettings);
     window.setPosition(windowPosition);
     window.setFramerateLimit(5);
 
-    setShapeCircle(window.getSystemHandle(), windowSize);
+    setShapeCircle(window.getNativeHandle(), windowSize);
     //setTransparency(window.getSystemHandle(), 255);
     //ShowWindow(window.getSystemHandle(), SW_HIDE);
 
     // prepare the background
-    sf::RenderTexture renderTexture;
-    renderTexture.create(windowSize.x, windowSize.y, contextSettings);
+    sf::RenderTexture renderTexture(windowSize, contextSettings);
     renderTexture.clear(sf::Color(colhex_black));
     DrawClockBackground(renderTexture);
     renderTexture.display();
@@ -439,7 +441,7 @@ int main(int argc, char** argv)
         window.draw(spriteBg); // clear
         DrawClockHands(window, hShape, mShape, s1Shape, s2Shape, Hour, Min, Sec);
         window.display();
-        
+
         sf::sleep(sf::milliseconds(GetWaitTimeMs()));
     }
 

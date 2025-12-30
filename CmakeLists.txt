@@ -1,0 +1,55 @@
+# create the VS2022 Solution via
+# mkdir build
+# cd build
+# cmake .. -G "Visual Studio 17 2022"
+
+cmake_minimum_required(VERSION 3.22)
+
+project(MondaineClock VERSION 1.0 LANGUAGES CXX)
+
+# C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Output directories
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${CMAKE_GENERATOR_PLATFORM}/${CMAKE_BUILD_TYPE})
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_GENERATOR_PLATFORM}/${CMAKE_BUILD_TYPE})
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_GENERATOR_PLATFORM}/${CMAKE_BUILD_TYPE})
+# Use the correct VS platform variable
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>)
+
+# Add executable
+add_executable(${PROJECT_NAME} main.cpp)
+
+set(SFML_DIR "C:/Libs/SFML-3.0.2") # Set this to point to your SFML installation
+
+# Include directories
+target_include_directories(${PROJECT_NAME} PRIVATE
+    "${SFML_DIR}/include"
+)
+
+# Preprocessor definitions for static linking
+target_compile_definitions(${PROJECT_NAME} PRIVATE SFML_STATIC)
+
+# Library directory
+#link_directories("${SFML_DIR}/lib")
+target_link_directories(${PROJECT_NAME} PRIVATE
+    "${SFML_DIR}/lib"
+)
+
+# Link SFML static libs with debug/release suffixes
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    debug sfml-graphics-s-d.lib
+    debug sfml-window-s-d.lib
+    debug sfml-system-s-d.lib
+    optimized sfml-graphics-s.lib
+    optimized sfml-window-s.lib
+    optimized sfml-system-s.lib
+    # These libraries are required for static linking. The first one is provided by Sfml, the others are on windows
+    freetype.lib
+    gdi32.lib
+    opengl32.lib
+    winmm.lib
+)
