@@ -1,7 +1,7 @@
 # Mondaine Clock
 A simple desktop clock widget inspired by the original [Swiss Mondaine Railway](https://ch.mondaine.com/) design.
 
-![Clock](mondaine_clock.gif)
+![Clock](images/mondaine_clock.gif)
 
 
 ### Running:
