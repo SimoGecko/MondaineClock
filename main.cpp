@@ -10,17 +10,17 @@ int posy = -1;
 bool stop2go = true;
 bool dark = false;
 unsigned int handcolor = 0;
+
+// SETTINGS
 float secondPeriod = 58.f;
 
-// state
+// STATE
 bool isMouseDragging = false;
 int lastDownX = 0, lastDownY = 0;
 
 // CLOCK
 #define scaling ((float)csize/112)
 #define U *scaling
-
-//#define UNIT(name, value) 
 
 #define clock_r  (56   U)
 #define clock_b  ( 3.5 U)
@@ -50,6 +50,7 @@ int lastDownX = 0, lastDownY = 0;
 #define col_black 0x151515
 #define col_red   0xEB0000
 
+// MACROS
 #define TO_RGBA(hex) ((hex)<<8 | 0xff)
 #define POW2(x) ((x)*(x))
 
@@ -98,29 +99,29 @@ static sf::ConvexShape getTrapezoidShape    (sf::Color color, sf::Vector2f origi
 
 static void drawClockBackground(sf::RenderTarget& target)
 {
-    const sf::Color white(TO_RGBA(!dark ? col_white : col_black));
-    const sf::Color black(TO_RGBA(!dark ? col_black : col_white));
+    const sf::Color bgColor(TO_RGBA(!dark ? col_white : col_black));
+    const sf::Color fgColor(TO_RGBA(!dark ? col_black : col_white));
     const sf::Vector2f center(clock_r, clock_r);
 
     // draw background + border
     sf::Vector2f origin(clock_r, clock_r);
-    target.draw(getCircleShape(white, origin, center, 0.f, clock_r, 120, black, -clock_b));
+    target.draw(getCircleShape(bgColor, origin, center, 0.f, clock_r, 120, fgColor, -clock_b));
 
     // draw ticks
     for (int i = 0; i < 60; ++i)
     {
-        bool largeTick = (i % 5 == 0);
-        sf::Vector2f size = largeTick ? sf::Vector2f(ticks_w1, ticks_l1) : sf::Vector2f(ticks_w2, ticks_l2);
-        float angle = (float)i * 6.f; // / 60.f * 360.f;
+        bool isMajor = (i % 5 == 0);
+        sf::Vector2f size = isMajor ? sf::Vector2f(ticks_w1, ticks_l1) : sf::Vector2f(ticks_w2, ticks_l2);
+        float angleDeg = (float)i * 6.f; // 360/60
         sf::Vector2f origin(size.x / 2.f, ticks_r);
-        target.draw(getRectangleShape(black, origin, center, angle, size));
+        target.draw(getRectangleShape(fgColor, origin, center, angleDeg, size));
     }
 }
 
 static void createClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape)
 {
-    const sf::Color black(TO_RGBA(!dark ? col_black : col_white));
-    const sf::Color red(TO_RGBA(handcolor == 0 ? col_red : handcolor));
+    const sf::Color fgColor(TO_RGBA(!dark ? col_black : col_white));
+    const sf::Color accentColor(TO_RGBA(handcolor == 0 ? col_red : handcolor));
     const sf::Vector2f center(clock_r, clock_r);
 
     const float angle = 0.f;
@@ -129,26 +130,26 @@ static void createClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1
     {
         sf::Vector3f size(hour_w1, hour_w2, hour_l1 + hour_l2);
         sf::Vector2f origin(size.x / 2.f, hour_l1);
-        hShape = getTrapezoidShape(black, origin, center, angle, size);
+        hShape = getTrapezoidShape(fgColor, origin, center, angle, size);
     }
 
     // create minutes
     {
         sf::Vector3f size(min_w1, min_w2, min_l1 + min_l2);
         sf::Vector2f origin(size.x / 2.f, min_l1);
-        mShape = getTrapezoidShape(black, origin, center, angle, size);
+        mShape = getTrapezoidShape(fgColor, origin, center, angle, size);
     }
 
     // create seconds
     {
         sf::Vector2f size(sec_w, sec_l1 + sec_l2);
         sf::Vector2f origin1(size.x / 2.f, sec_l1);
-        s1Shape = getRectangleShape(red, origin1, center, angle, size);
+        s1Shape = getRectangleShape(accentColor, origin1, center, angle, size);
 
         float sec_r = sec_d / 2.f;
         sf::Vector2f origin2(sec_r, sec_r + sec_l1);
         float radius = sec_r;
-        s2Shape = getCircleShape(red, origin2, center, angle, radius, 32);
+        s2Shape = getCircleShape(accentColor, origin2, center, angle, radius, 32);
     }
 }
 
@@ -176,7 +177,7 @@ static void processEvents(sf::Window& window)
 {
     while (const std::optional event = window.pollEvent())
     {
-        if (event->is<sf::Event::Closed>())// || (event->is<sf::Event::KeyPressed>() && event.key.code == sf::Keyboard::Escape))
+        if (event->is<sf::Event::Closed>())
         {
             window.close();
         }
@@ -188,10 +189,12 @@ static void processEvents(sf::Window& window)
         // drag window
         else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
         {
-            // TODO: main mouse only
+            if (mousePressed->button == sf::Mouse::Button::Left)
+            {
             isMouseDragging = true;
             lastDownX = mousePressed->position.x;
             lastDownY = mousePressed->position.y;
+        }
         }
         else if (const auto* mouseMoved = event->getIf<sf::Event::MouseMoved>())
         {
@@ -202,7 +205,12 @@ static void processEvents(sf::Window& window)
         }
         else if (event->is<sf::Event::MouseButtonReleased>())
         {
+            if (mousePressed->button == sf::Mouse::Button::Left)
+        {
             isMouseDragging = false;
+                lastDownX = 0;
+                lastDownY = 0;
+            }
         }
     }
 }
