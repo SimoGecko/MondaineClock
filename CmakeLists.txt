@@ -21,7 +21,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_VS_PLATFORM
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_VS_PLATFORM_NAME}/$<CONFIG>)
 
 # Add executable
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME}
+    main.cpp
+    icon.ico
+    resource.rc
+)
 
 set(SFML_DIR "C:/Libs/SFML-3.0.2") # Set this to point to your SFML installation
 
