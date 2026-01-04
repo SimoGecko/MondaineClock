@@ -17,36 +17,38 @@ bool isMouseDragging = false;
 int lastDownX = 0, lastDownY = 0;
 
 // CLOCK
-#define scaling ((float)csize/360)
+#define scaling ((float)csize/112)
 #define U *scaling
 
-#define clock_r  (180 U)
-#define clock_b  ( 12 U)
+//#define UNIT(name, value) 
 
-#define ticks_r  (160 U)
-#define ticks_l1 ( 40 U)
-#define ticks_w1 ( 12 U)
-#define ticks_l2 ( 12 U)
-#define ticks_w2 (  5 U)
+#define clock_r  (56   U)
+#define clock_b  ( 3.5 U)
 
-#define hour_l1  ( 94 U)
-#define hour_l2  ( 39 U)
-#define hour_w1  ( 15 U)
-#define hour_w2  ( 21 U)
+#define ticks_r  (48.5 U)
+#define ticks_l1 (12   U)
+#define ticks_w1 ( 3.5 U)
+#define ticks_l2 ( 3.5 U)
+#define ticks_w2 ( 1.4 U)
 
-#define min_l1   (152 U)
-#define min_l2   ( 40 U)
-#define min_w1   ( 12 U)
-#define min_w2   ( 18 U)
+#define hour_l1  (32   U)
+#define hour_l2  (12   U)
+#define hour_w1  ( 5.2 U)
+#define hour_w2  ( 6.4 U)
 
-#define sec_l1   (110 U)
-#define sec_l2   ( 52 U)
-#define sec_w    (  5 U)
-#define sec_r    ( 13 U)
+#define min_l1   (46   U)
+#define min_l2   (12   U)
+#define min_w1   ( 3.6 U)
+#define min_w2   ( 5.2 U)
 
-#define col_white 0xfdfdfd
-#define col_black 0x221e20
-#define col_red   0xec2324
+#define sec_l1   (31.2 U)
+#define sec_l2   (16.5 U)
+#define sec_w    ( 1.4 U)
+#define sec_d    (10.5 U)
+
+#define col_white 0xFFFFFF
+#define col_black 0x151515
+#define col_red   0xEB0000
 
 #define TO_RGBA(hex) ((hex)<<8 | 0xff)
 #define POW2(x) ((x)*(x))
@@ -143,6 +145,7 @@ static void createClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1
         sf::Vector2f origin1(size.x / 2.f, sec_l1);
         s1Shape = getRectangleShape(red, origin1, center, angle, size);
 
+        float sec_r = sec_d / 2.f;
         sf::Vector2f origin2(sec_r, sec_r + sec_l1);
         float radius = sec_r;
         s2Shape = getCircleShape(red, origin2, center, angle, radius, 32);
