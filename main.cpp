@@ -3,40 +3,6 @@
 #include <ctime>
 #include <windows.h>
 
-#define POW2(x) ((x)*(x))
-
-bool setShapeCircle(HWND hWnd, const sf::Vector2u& size)
-{
-    HRGN hRegion = CreateRectRgn(0, 0, size.x, size.y);
-
-    // Determine the visible region
-    int d2 = POW2(size.x / 2);
-    for (int y = 0; y < size.y; y++)
-    {
-        for (int x = 0; x < size.x; x++)
-        {
-            int d = POW2(x - size.x / 2) + POW2(y - size.y / 2);
-            if (d > d2)
-            {
-                HRGN hRegionPixel = CreateRectRgn(x, y, x + 1, y + 1);
-                CombineRgn(hRegion, hRegion, hRegionPixel, RGN_XOR);
-                DeleteObject(hRegionPixel);
-            }
-        }
-    }
-
-    SetWindowRgn(hWnd, hRegion, true);
-    DeleteObject(hRegion);
-    return true;
-}
-
-bool setTransparency(HWND hWnd, unsigned char alpha)
-{
-    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-    SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
-    return true;
-}
-
 // PARAMETERS
 int csize = 200;
 int posx = -1;
@@ -44,6 +10,7 @@ int posy = -1;
 bool stop2go = true;
 bool dark = false;
 unsigned int handcolor = 0;
+float secondPeriod = 58.f;
 
 // state
 bool isMouseDragging = false;
@@ -81,22 +48,12 @@ int lastDownX = 0, lastDownY = 0;
 #define col_black 0x221e20
 #define col_red   0xec2324
 
-#define colhex_white ((col_white<<8) | 0xff)
-#define colhex_black ((col_black<<8) | 0xff)
-#define colhex_red   ((col_red  <<8) | 0xff)
+#define TO_RGBA(hex) ((hex)<<8 | 0xff)
+#define POW2(x) ((x)*(x))
 
 ////////////////////////////////////////////////// SFML //////////////////////////////////////////////////
 
-static sf::CircleShape getCircleShape       (sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, int segments = 32)
-{
-    sf::CircleShape cs(radius, segments);
-    cs.setFillColor(color);
-    cs.setOrigin(origin);
-    cs.setPosition(position);
-    cs.setRotation(sf::degrees(rotation));
-    return cs;
-}
-static sf::CircleShape getCircleOutlineShape(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, int segments = 32, sf::Color outlineColor = sf::Color::Transparent, float outlineThickness = 0.f)
+static sf::CircleShape getCircleShape(sf::Color color, sf::Vector2f origin, sf::Vector2f position, float rotation, float radius, int segments = 32, sf::Color outlineColor = sf::Color::Transparent, float outlineThickness = 0.f)
 {
     sf::CircleShape cs(radius, segments);
     cs.setFillColor(color);
@@ -139,13 +96,13 @@ static sf::ConvexShape getTrapezoidShape    (sf::Color color, sf::Vector2f origi
 
 static void drawClockBackground(sf::RenderTarget& target)
 {
-    const sf::Color white(!dark ? colhex_white : colhex_black);
-    const sf::Color black(!dark ? colhex_black : colhex_white);
+    const sf::Color white(TO_RGBA(!dark ? col_white : col_black));
+    const sf::Color black(TO_RGBA(!dark ? col_black : col_white));
     const sf::Vector2f center(clock_r, clock_r);
 
     // draw background + border
     sf::Vector2f origin(clock_r, clock_r);
-    target.draw(getCircleOutlineShape(white, origin, center, 0.f, clock_r, 120, black, -clock_b));
+    target.draw(getCircleShape(white, origin, center, 0.f, clock_r, 120, black, -clock_b));
 
     // draw ticks
     for (int i = 0; i < 60; ++i)
@@ -160,8 +117,8 @@ static void drawClockBackground(sf::RenderTarget& target)
 
 static void createClockHands(sf::Shape& hShape, sf::Shape& mShape, sf::Shape& s1Shape, sf::Shape& s2Shape)
 {
-    const sf::Color black(!dark ? colhex_black : colhex_white);
-    const sf::Color red(handcolor == 0 ? colhex_red : handcolor);
+    const sf::Color black(TO_RGBA(!dark ? col_black : col_white));
+    const sf::Color red(TO_RGBA(handcolor == 0 ? col_red : handcolor));
     const sf::Vector2f center(clock_r, clock_r);
 
     const float angle = 0.f;
@@ -212,23 +169,6 @@ static void drawClockHands(sf::RenderTarget& target, sf::Shape& hShape, sf::Shap
     target.draw(s2Shape);
 }
 
-static void readParams(int argc, char** argv)
-{
-    for (int i = 1; i < argc; i++)
-    {
-        if      (_strcmpi(argv[i], "size")        == 0 && (i + 1 < argc)) csize       = std::stoi(argv[++i]);
-        else if (_strcmpi(argv[i], "posx")        == 0 && (i + 1 < argc)) posx        = std::stoi(argv[++i]);
-        else if (_strcmpi(argv[i], "posy")        == 0 && (i + 1 < argc)) posy        = std::stoi(argv[++i]);
-        else if (_strcmpi(argv[i], "stop2go")     == 0 && (i + 1 < argc)) stop2go     = (_strcmpi(argv[++i], "0") != 0);
-        else if (_strcmpi(argv[i], "dark")        == 0                  ) dark        = true;
-        else if (_strcmpi(argv[i], "handcolor")   == 0 && (i + 1 < argc))
-        {
-            int hex = std::stoi(argv[++i], 0, 16);
-            handcolor = ((hex << 8) | 0xff);
-        }
-    }
-}
-
 static void processEvents(sf::Window& window)
 {
     while (const std::optional event = window.pollEvent())
@@ -264,6 +204,42 @@ static void processEvents(sf::Window& window)
     }
 }
 
+////////////////////////////////////////////////// WINDOWS //////////////////////////////////////////////////
+
+bool setWindowShapeCircle(HWND hWnd, const sf::Vector2u& size)
+{
+    HRGN hRegion = CreateRectRgn(0, 0, size.x, size.y);
+
+    // Determine the visible region
+    int d2 = POW2(size.x / 2);
+    for (int y = 0; y < size.y; y++)
+    {
+        for (int x = 0; x < size.x; x++)
+        {
+            int d = POW2(x - size.x / 2) + POW2(y - size.y / 2);
+            if (d > d2)
+            {
+                HRGN hRegionPixel = CreateRectRgn(x, y, x + 1, y + 1);
+                CombineRgn(hRegion, hRegion, hRegionPixel, RGN_XOR);
+                DeleteObject(hRegionPixel);
+            }
+        }
+    }
+
+    SetWindowRgn(hWnd, hRegion, true);
+    DeleteObject(hRegion);
+    return true;
+}
+
+bool setWindowTransparency(HWND hWnd, unsigned char alpha)
+{
+    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
+    return true;
+}
+
+////////////////////////////////////////////////// SYSTEM //////////////////////////////////////////////////
+
 static void getTime(int& Hour, int& Min, int& Sec)
 {
     //const std::time_t now = std::time(nullptr);
@@ -279,7 +255,7 @@ static void getTime(int& Hour, int& Min, int& Sec)
     {
         int Msec = st.wMilliseconds;
         float Secf = (float)Sec + (float)Msec / 1000.f;
-        Secf = Secf * (60.f / 58.f);
+        Secf = Secf * (60.f / secondPeriod);
         Secf = Secf < 0.f ? 0.f : Secf > 60.f ? 60.f : Secf;
         Sec = (int)Secf; // floor
     }
@@ -294,7 +270,7 @@ static int getWaitTimeMs()
     if (stop2go)
     {
         int Sec = st.wSecond;
-        if (Sec >= 58) return 1000 - Msec;
+        if (Sec >= secondPeriod) return 1000 - Msec;
 
         int tot = Sec * 1000 + Msec;
         // find next multiple of 966.66=1000*58/60
@@ -307,9 +283,22 @@ static int getWaitTimeMs()
     }
 }
 
-////////////////////////////////////////////////// WINDOWS //////////////////////////////////////////////////
-
-////////////////////////////////////////////////// SYSTEM //////////////////////////////////////////////////
+static void readParams(int argc, char** argv)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        if      (_strcmpi(argv[i], "size")        == 0 && (i + 1 < argc)) csize       = std::stoi(argv[++i]);
+        else if (_strcmpi(argv[i], "posx")        == 0 && (i + 1 < argc)) posx        = std::stoi(argv[++i]);
+        else if (_strcmpi(argv[i], "posy")        == 0 && (i + 1 < argc)) posy        = std::stoi(argv[++i]);
+        else if (_strcmpi(argv[i], "stop2go")     == 0 && (i + 1 < argc)) stop2go     = (_strcmpi(argv[++i], "0") != 0);
+        else if (_strcmpi(argv[i], "dark")        == 0                  ) dark        = true;
+        else if (_strcmpi(argv[i], "handcolor")   == 0 && (i + 1 < argc))
+        {
+            int hex = std::stoi(argv[++i], 0, 16);
+            handcolor = ((hex << 8) | 0xff);
+        }
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -321,23 +310,21 @@ int main(int argc, char** argv)
     if (posy == -1) posy = (sf::VideoMode::getDesktopMode().size.y - windowSize.y) - 10 - windowsTaskbarHeight;
     sf::Vector2i windowPosition(posx, posy);
 
-
     // Create the window
     sf::ContextSettings contextSettings;
     contextSettings.antiAliasingLevel = 8;
 
-    sf::VideoMode videoMode(windowSize, 32);
-    sf::RenderWindow window(videoMode, sf::String("Mondaine Clock"), sf::Style::None, sf::State::Windowed, contextSettings);
+    sf::RenderWindow window(sf::VideoMode(windowSize, 32), sf::String("Mondaine Clock"), sf::Style::None, sf::State::Windowed, contextSettings);
     window.setPosition(windowPosition);
     window.setFramerateLimit(5);
 
-    setShapeCircle(window.getNativeHandle(), windowSize);
+    setWindowShapeCircle(window.getNativeHandle(), windowSize);
     //setTransparency(window.getSystemHandle(), 255);
     //ShowWindow(window.getSystemHandle(), SW_HIDE);
 
     // prepare the background
     sf::RenderTexture renderTexture(windowSize, contextSettings);
-    renderTexture.clear(sf::Color(colhex_black));
+    renderTexture.clear(sf::Color(TO_RGBA(col_black)));
     drawClockBackground(renderTexture);
     renderTexture.display();
     const sf::Texture& textureBg = renderTexture.getTexture();
