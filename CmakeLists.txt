@@ -24,6 +24,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_VS_PLATFORM
 add_executable(${PROJECT_NAME}
     main.cpp
     icon.ico
+    resource.h
     resource.rc
 )
 
